@@ -77,12 +77,12 @@ jobs:
             ADMIN_USERNAME=test
             ADMIN_PASSWORD=test123
 
-      - name: Build Docker image (SQLite version)
+      - name: Build SQLite version
         if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
         run: |
           docker build -t 498330580/${{ env.IMAGE_NAME }}:sqlite .
 
-      - name: Push SQLite version to Docker Hub
+      - name: Push SQLite version
         if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
         run: |
           docker push 498330580/${{ env.IMAGE_NAME }}:sqlite
@@ -108,7 +108,7 @@ jobs:
             -w /app \
             498330580/${{ env.IMAGE_NAME }}:sqlite \
             python manage.py makemigrations --check --dry-run || true
-          echo "迁移测试完成（Docker镜像已自动处理迁移）"
+          echo "迁移测试完成"
 
       - name: Verify database models
         run: |
@@ -119,7 +119,7 @@ jobs:
             -v ${{ github.workspace }}:/app \
             -w /app \
             498330580/${{ env.IMAGE_NAME }}:sqlite \
-            python manage.py sqlmigrate books 0001 || echo "首次部署，数据库迁移将在容器启动时自动执行"
+            python manage.py sqlmigrate books 0001 || echo "首次部署"
           echo "模型验证完成"
 
       - name: Test admin user creation
@@ -130,8 +130,8 @@ jobs:
             -e ADMIN_EMAIL=admin@test.com \
             -e ADMIN_PASSWORD=custompass123 \
             498330580/${{ env.IMAGE_NAME }}:sqlite \
-            sh -c 'echo "ADMIN_USERNAME=$ADMIN_USERNAME, ADMIN_EMAIL=$ADMIN_EMAIL"'
-          echo "管理员用户创建测试完成"
+            sh -c 'echo "ADMIN_USERNAME=$ADMIN_USERNAME"'
+          echo "测试完成"
 
   notify:
     runs-on: ubuntu-latest
@@ -149,6 +149,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Print success message
+        if: success()
         run: |
           echo "========================================"
           echo "Docker镜像构建并推送成功！"
@@ -158,15 +159,11 @@ jobs:
           echo "  - ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
           echo ""
           echo "使用方式："
-          echo "  # 使用默认管理员 (admin/admin123)"
           echo "  docker pull 498330580/legado-book-source:latest"
           echo "  docker run -p 8000:8000 498330580/legado-book-source:latest"
-          echo ""
-          echo "  # 自定义管理员账户"
-          echo "  docker run -p 8000:8000 -e ADMIN_USERNAME=myadmin -e ADMIN_EMAIL=admin@mysite.com -e ADMIN_PASSWORD=mypassword123 498330580/legado-book-source:latest"
           echo "========================================"
 
-      - name: Notify failure
+      - name: Print failure message
         if: failure()
         run: |
           echo "========================================"
