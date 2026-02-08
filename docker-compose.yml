@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: legado-book-source
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./static:/app/static
+    environment:
+      - DJANGO_SETTINGS_MODULE=novel_source_site.settings
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - legado-network
+
+  # 可选：使用PostgreSQL替代SQLite
+  db:
+    image: postgres:15-alpine
+    container_name: legado-postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=legado
+      - POSTGRES_USER=legado
+      - POSTGRES_PASSWORD=legado123
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legado -d legado"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      legado-network
+    profiles:
+      - postgres
+
+networks:
+  legado-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

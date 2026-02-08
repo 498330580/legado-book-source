@@ -1,0 +1,55 @@
+version: '3.8'
+
+# 生产环境Docker Compose配置
+# 使用方式: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  web:
+    image: ${DOCKERHUB_USERNAME:-legado}/legado-book-source:${TAG:-latest}
+    container_name: legado-web
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    volumes:
+      - static_data:/app/static
+      - media_data:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-novel_source_site.settings}
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - DEBUG=${DEBUG:-0}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      - DATABASE_URL=${DATABASE_URL:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/", "--max-time", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - legado-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.legado.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.services.legado.loadbalancer.server.port=8000"
+
+  # 可选：使用Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: legado-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - legado-network
+    profiles:
+      - redis
+
+networks:
+  legado-network:
+    driver: bridge
+
+volumes:
+  static_data:
+  media_data:
+  redis_data:

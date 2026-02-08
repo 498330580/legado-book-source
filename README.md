@@ -65,6 +65,123 @@ python manage.py seed_data
 python manage.py runserver 0.0.0.0:8000
 ```
 
+---
+
+## Docker 部署
+
+### 使用Docker Hub镜像（推荐）
+
+```bash
+# 拉取镜像
+docker pull 你的用户名/legado-book-source:latest
+
+# 运行容器
+docker run -d \
+  --name legado-web \
+  -p 8000:8000 \
+  -v static_data:/app/static \
+  你的用户名/legado-book-source:latest
+```
+
+### 使用Docker Compose
+
+```bash
+# 克隆项目
+git clone https://github.com/你的用户名/legado-book-source.git
+cd legado-book-source
+
+# 使用默认配置启动
+docker-compose up -d
+
+# 或者使用生产配置
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### 环境变量配置
+
+创建 `.env` 文件：
+
+```env
+# Docker Hub用户名
+DOCKERHUB_USERNAME=你的用户名
+
+# 镜像标签
+TAG=latest
+
+# 宿主机端口
+HOST_PORT=8000
+
+# 允许的域名
+ALLOWED_HOSTS=*
+
+# 调试模式
+DEBUG=0
+
+# 数据库URL（可选，使用PostgreSQL）
+DATABASE_URL=postgresql://user:pass@db:5432/legado
+
+# 域名（用于反向代理）
+DOMAIN=localhost
+```
+
+### 使用Docker Compose + PostgreSQL
+
+```bash
+# 启动所有服务（包括PostgreSQL）
+docker-compose -f docker-compose.yml --profile postgres up -d
+```
+
+### 端口和卷
+
+| 映射 | 说明 |
+|------|------|
+| `8000:8000` | Web服务端口 |
+| `static_data:/app/static` | 静态文件 |
+| `media_data:/app/media` | 媒体文件 |
+
+### 验证部署
+
+```bash
+# 检查容器状态
+docker ps
+
+# 检查健康状态
+curl http://localhost:8000/api/health/
+
+# 查看日志
+docker-compose logs -f
+```
+
+### 数据持久化
+
+- **数据库**：SQLite文件存储在容器内，升级时会自动迁移
+- **静态文件**：挂载到 `static_data` 卷
+- **备份**：挂载主机目录到 `/data`
+
+### 更新部署
+
+```bash
+# 拉取最新镜像
+docker pull 你的用户名/legado-book-source:latest
+
+# 重新启动
+docker-compose down
+docker-compose up -d
+```
+
+### DockerHub自动构建
+
+项目已配置GitHub Actions，当代码推送到master分支时，会自动：
+1. 构建Docker镜像
+2. 运行数据库迁移测试
+3. 推送到Docker Hub
+
+推送前需在GitHub仓库设置：
+- `DOCKERHUB_USERNAME`：Docker Hub用户名
+- `DOCKERHUB_TOKEN`：Docker Hub访问令牌
+
+---
+
 ## 使用说明
 
 ### 后台管理
@@ -189,6 +306,14 @@ novel_source_site/
 ├── requirements.txt           # 依赖列表
 ├── README.md                  # 使用说明
 ├── API.md                     # API文档
+├── Dockerfile                 # Docker构建文件
+├── docker-compose.yml         # 开发环境Docker Compose
+├── docker-compose.prod.yml    # 生产环境Docker Compose
+├── entrypoint.py             # Docker入口脚本
+├── .dockerignore             # Docker忽略文件
+├── .github/
+│   └── workflows/
+│       └── docker.yml       # GitHub Actions Docker构建
 ├── novel_source/              # Django项目配置
 │   ├── settings.py
 │   ├── urls.py
@@ -201,10 +326,12 @@ novel_source_site/
 │   ├── admin.py              # 后台管理配置
 │   ├── scrapers/             # 抓取模块
 │   │   ├── base.py          # 抓取器基类
-│   │   └── ...
+│   │   ├── engine.py        # 抓取引擎
+│   │   └── scheduler.py     # 定时任务调度器
 │   └── management/           # 管理命令
 │       └── commands/
-│           └── seed_data.py  # 初始化测试数据
+│           ├── seed_data.py  # 初始化测试数据
+│           └── run_scraping.py # 运行抓取任务
 ├── templates/                 # 模板文件
 │   └── books/
 │       └── index.html        # 首页
@@ -221,6 +348,9 @@ novel_source_site/
 - **数据库**: SQLite（本地使用）
 - **HTTP客户端**: requests + httpx
 - **HTML解析**: BeautifulSoup4
+- **定时任务**: APScheduler
+- **容器化**: Docker + Docker Compose
+- **CI/CD**: GitHub Actions
 
 ## 许可证
 
