@@ -2,22 +2,8 @@ name: Docker Build and Push
 
 on:
   push:
-    branches:
-      - master
-      - main
-    paths:
-      - '**.py'
-      - 'Dockerfile'
-      - 'docker-compose.yml'
-      - 'docker-compose.prod.yml'
-      - 'docker-compose.local.yml'
-      - 'requirements.txt'
-      - '.github/workflows/docker.yml'
-      - 'entrypoint.py'
-      - '*.md'
-  release:
-    types:
-      - created
+    tags:
+      - 'v*'
 
 env:
   DOCKERHUB_USERNAME: 498330580
@@ -26,7 +12,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'release'
 
     steps:
       - name: Checkout code
@@ -38,13 +23,7 @@ jobs:
       - name: Extract version tag
         id: version
         run: |
-          if [[ ${{ github.ref }} == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          elif [[ ${{ github.ref }} == refs/heads/master ]]; then
-            VERSION=latest
-          else
-            VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "latest")
-          fi
+          VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
@@ -54,7 +33,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push with version and latest tags
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -72,8 +51,10 @@ jobs:
         run: |
           echo "========================================"
           echo "镜像推送成功！"
-          echo "标签: ${{ steps.version.outputs.version }}"
-          echo "镜像: 498330580/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+          echo "版本: ${{ steps.version.outputs.version }}"
+          echo "镜像标签:"
+          echo "  - 498330580/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+          echo "  - 498330580/${{ env.IMAGE_NAME }}:latest"
           echo "========================================"
 
   notify:
@@ -85,11 +66,7 @@ jobs:
       - name: Get image version
         id: version
         run: |
-          if [[ ${{ github.ref }} == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION=latest
-          fi
+          VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Success message
@@ -102,7 +79,7 @@ jobs:
           echo "  - 498330580/legado-book-source:${{ steps.version.outputs.version }}"
           echo "  - 498330580/legado-book-source:latest"
           echo ""
-          echo "使用命令："
+          echo "拉取命令："
           echo "  docker pull 498330580/legado-book-source:${{ steps.version.outputs.version }}"
           echo "========================================"
 
