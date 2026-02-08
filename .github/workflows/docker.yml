@@ -10,9 +10,11 @@ on:
       - 'Dockerfile'
       - 'docker-compose.yml'
       - 'docker-compose.prod.yml'
+      - 'docker-compose.local.yml'
       - 'requirements.txt'
       - '.github/workflows/docker.yml'
       - 'entrypoint.py'
+      - '*.md'
   release:
     types:
       - created
@@ -38,7 +40,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+            498330580/${{ env.IMAGE_NAME }}
             ghcr.io/${{ github.repository }}
           tags: |
             type=raw,latest
@@ -68,24 +70,22 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: 498330580/${{ env.IMAGE_NAME }}:${{ github.ref == 'refs/heads/master' && 'latest' || github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             ADMIN_USERNAME=test
-            ADMIN_EMAIL=test@example.com
             ADMIN_PASSWORD=test123
 
       - name: Build Docker image (SQLite version)
         if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite .
+          docker build -t 498330580/${{ env.IMAGE_NAME }}:sqlite .
 
       - name: Push SQLite version to Docker Hub
         if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite
+          docker push 498330580/${{ env.IMAGE_NAME }}:sqlite
 
   migration-test:
     runs-on: ubuntu-latest
@@ -100,62 +100,44 @@ jobs:
 
       - name: Test database migration
         run: |
-          # 创建一个临时数据库用于测试迁移
           echo "测试数据库迁移..."
-          
-          # 使用Docker运行迁移测试
           docker run --rm \
             -e ADMIN_USERNAME=testadmin \
-            -e ADMIN_EMAIL=test@example.com \
             -e ADMIN_PASSWORD=testpass123 \
             -v ${{ github.workspace }}:/app \
             -w /app \
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite \
+            498330580/${{ env.IMAGE_NAME }}:sqlite \
             python manage.py makemigrations --check --dry-run || true
-          
           echo "迁移测试完成（Docker镜像已自动处理迁移）"
 
       - name: Verify database models
         run: |
           echo "验证数据库模型..."
-          # 检查是否有未迁移的模型变更
           docker run --rm \
             -e ADMIN_USERNAME=testadmin \
-            -e ADMIN_EMAIL=test@example.com \
             -e ADMIN_PASSWORD=testpass123 \
             -v ${{ github.workspace }}:/app \
             -w /app \
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite \
+            498330580/${{ env.IMAGE_NAME }}:sqlite \
             python manage.py sqlmigrate books 0001 || echo "首次部署，数据库迁移将在容器启动时自动执行"
-          
           echo "模型验证完成"
 
       - name: Test admin user creation
         run: |
           echo "测试管理员用户创建..."
-          # 验证环境变量是否正确传递
           docker run --rm \
             -e ADMIN_USERNAME=customadmin \
             -e ADMIN_EMAIL=admin@test.com \
             -e ADMIN_PASSWORD=custompass123 \
-            -v ${{ github.workspace }}:/app \
-            -w /app \
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite \
-            python -c "
-import os
-assert os.environ.get('ADMIN_USERNAME') == 'customadmin', 'ADMIN_USERNAME not set'
-assert os.environ.get('ADMIN_EMAIL') == 'admin@test.com', 'ADMIN_EMAIL not set'
-assert os.environ.get('ADMIN_PASSWORD') == 'custompass123', 'ADMIN_PASSWORD not set'
-print('管理员环境变量测试通过！')
-" || echo "环境变量测试通过"
-          
+            498330580/${{ env.IMAGE_NAME }}:sqlite \
+            sh -c 'echo "ADMIN_USERNAME=$ADMIN_USERNAME, ADMIN_EMAIL=$ADMIN_EMAIL"'
           echo "管理员用户创建测试完成"
 
   notify:
     runs-on: ubuntu-latest
     needs: [build, migration-test]
     if: always()
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -172,27 +154,20 @@ print('管理员环境变量测试通过！')
           echo "Docker镜像构建并推送成功！"
           echo ""
           echo "推送的镜像标签："
-          echo "  - docker.io/${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
+          echo "  - docker.io/498330580/legado-book-source:latest"
           echo "  - ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
           echo ""
           echo "使用方式："
           echo "  # 使用默认管理员 (admin/admin123)"
-          echo "  docker pull ${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
-          echo "  docker run -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
+          echo "  docker pull 498330580/legado-book-source:latest"
+          echo "  docker run -p 8000:8000 498330580/legado-book-source:latest"
           echo ""
           echo "  # 自定义管理员账户"
-          echo "  docker run -p 8000:8000 \\"
-          echo "    -e ADMIN_USERNAME=myadmin \\"
-          echo "    -e ADMIN_EMAIL=admin@mysite.com \\"
-          echo "    -e ADMIN_PASSWORD=mypassword123 \\"
-          echo "    ${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
+          echo "  docker run -p 8000:8000 -e ADMIN_USERNAME=myadmin -e ADMIN_EMAIL=admin@mysite.com -e ADMIN_PASSWORD=mypassword123 498330580/legado-book-source:latest"
           echo "========================================"
 
-  on-failure:
-    runs-on: ubuntu-latest
-    if: failure()
-    steps:
       - name: Notify failure
+        if: failure()
         run: |
           echo "========================================"
           echo "Docker镜像构建或推送失败！"

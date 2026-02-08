@@ -1,12 +1,16 @@
 version: '3.8'
 
-# 默认配置：使用在线Docker镜像
-# 使用方式: docker-compose up -d
+# 本地打包配置
+# 使用方式: docker-compose -f docker-compose.local.yml up -d
+# 先打包: docker-compose -f docker-compose.local.yml build
 
 services:
   web:
-    image: 498330580/legado-book-source:latest
-    container_name: legado-book-source
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: legado-book-source:local
+    container_name: legado-book-source-local
     ports:
       - "8000:8000"
     volumes:
@@ -33,7 +37,7 @@ services:
   # 可选：使用PostgreSQL替代SQLite
   db:
     image: postgres:15-alpine
-    container_name: legado-postgres
+    container_name: legado-postgres-local
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
