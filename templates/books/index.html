@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阅读3本地书源网站</title>
+    <link rel="stylesheet" href="/static/books/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 阅读3本地书源网站</h1>
+            <p class="subtitle">为阅读3APP提供本地书籍API服务</p>
+        </header>
+
+        <section class="quick-start">
+            <h2>🚀 快速开始</h2>
+            <div class="card">
+                <h3>在阅读3APP中使用</h3>
+                <ol>
+                    <li>打开阅读3APP</li>
+                    <li>进入「书源管理」</li>
+                    <li>选择「导入书源」</li>
+                    <li>输入书源地址：<code id="source-url">http://你的IP:8000/api/source</code></li>
+                    <li>开始搜索和阅读！</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="features">
+            <h2>✨ 功能特性</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>📖 后台管理</h3>
+                    <p>通过Django原生后台轻松管理书籍、章节和书源配置</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔍 全文搜索</h3>
+                    <p>支持按书名、作者搜索书籍，快速找到想看的内容</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📚 分类浏览</h3>
+                    <p>按分类浏览书籍，发现更多好书</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔗 书源抓取</h3>
+                    <p>支持从其他网站抓取书籍，完全本地化存储</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⏰ 定时任务</h3>
+                    <p>设置自动抓取任务，定时更新书籍内容</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📱 阅读3兼容</h3>
+                    <p>完全符合阅读3API规范，无缝对接</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="api-docs">
+            <h2>📚 API文档</h2>
+            <div class="card">
+                <h3>核心API</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>端点</th>
+                            <th>方法</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>/api/search?key=关键词&page=1</code></td>
+                            <td>GET</td>
+                            <td>搜索书籍</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/book/{book_id}/</code></td>
+                            <td>GET</td>
+                            <td>获取书籍详情</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/book/{book_id}/toc/</code></td>
+                            <td>GET</td>
+                            <td>获取章节列表</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/chapter/{chapter_id}/</code></td>
+                            <td>GET</td>
+                            <td>获取章节内容</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/explore?type=分类&page=1</code></td>
+                            <td>GET</td>
+                            <td>发现/分类浏览</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/categories/</code></td>
+                            <td>GET</td>
+                            <td>获取分类列表</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>书源API</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>端点</th>
+                            <th>方法</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>/api/source/</code></td>
+                            <td>GET</td>
+                            <td>获取书源配置</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/sources/</code></td>
+                            <td>GET</td>
+                            <td>获取书源列表</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>任务API</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>端点</th>
+                            <th>方法</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>/api/scraping-tasks/</code></td>
+                            <td>GET/POST</td>
+                            <td>抓取任务列表/创建</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/scraping-tasks/{id}/run/</code></td>
+                            <td>POST</td>
+                            <td>运行抓取任务</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/scheduled-tasks/</code></td>
+                            <td>GET/POST</td>
+                            <td>定时任务列表/创建</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/scheduled-tasks/{id}/run/</code></td>
+                            <td>POST</td>
+                            <td>立即执行定时任务</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/scheduled-tasks/{id}/</code></td>
+                            <td>DELETE</td>
+                            <td>删除定时任务</td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/health/</code></td>
+                            <td>GET</td>
+                            <td>健康检查</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p style="margin-top: 20px;">
+                    <a href="/api/source/" class="btn" target="_blank">查看完整书源配置</a>
+                    <a href="/api/categories/" class="btn" target="_blank">查看分类列表</a>
+                </p>
+            </div>
+        </section>
+
+        <section class="admin-link">
+            <h2>⚙️ 管理后台</h2>
+            <p><a href="/admin/" class="btn">进入Django管理后台</a></p>
+        </section>
+
+        <footer>
+            <p>阅读3本地书源网站 | 基于Django + Django REST Framework</p>
+            <p><a href="/api/docs/" style="color: #667eea;">API文档</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('source-url').textContent = 
+            window.location.origin + '/api/source';
+    </script>
+</body>
+</html>
