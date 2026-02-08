@@ -20,13 +20,13 @@ on:
       - created
 
 env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  DOCKERHUB_USERNAME: 498330580
   IMAGE_NAME: legado-book-source
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'release'
 
     steps:
       - name: Checkout code
@@ -35,21 +35,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            498330580/${{ env.IMAGE_NAME }}
-            ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,latest
-            type=sha,prefix=
-            type=ref,event=branch
-            type=ref,event=tag
-            type=schedule
-            type=pep440,pattern={{version}}
-            type=pep440,pattern={{major}}.{{minor}}
+      - name: Extract version tag
+        id: version
+        run: |
+          if [[ ${{ github.ref }} == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          elif [[ ${{ github.ref }} == refs/heads/master ]]; then
+            VERSION=latest
+          else
+            VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "latest")
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -57,113 +54,59 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN || github.token }}
-
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: 498330580/${{ env.IMAGE_NAME }}:${{ github.ref == 'refs/heads/master' && 'latest' || github.ref_name }}
+          push: true
+          tags: |
+            498330580/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            498330580/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             ADMIN_USERNAME=test
             ADMIN_PASSWORD=test123
 
-      - name: Build SQLite version
-        if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
+      - name: Print success
         run: |
-          docker build -t 498330580/${{ env.IMAGE_NAME }}:sqlite .
-
-      - name: Push SQLite version
-        if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
-        run: |
-          docker push 498330580/${{ env.IMAGE_NAME }}:sqlite
-
-  migration-test:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Test database migration
-        run: |
-          echo "测试数据库迁移..."
-          docker run --rm \
-            -e ADMIN_USERNAME=testadmin \
-            -e ADMIN_PASSWORD=testpass123 \
-            -v ${{ github.workspace }}:/app \
-            -w /app \
-            498330580/${{ env.IMAGE_NAME }}:sqlite \
-            python manage.py makemigrations --check --dry-run || true
-          echo "迁移测试完成"
-
-      - name: Verify database models
-        run: |
-          echo "验证数据库模型..."
-          docker run --rm \
-            -e ADMIN_USERNAME=testadmin \
-            -e ADMIN_PASSWORD=testpass123 \
-            -v ${{ github.workspace }}:/app \
-            -w /app \
-            498330580/${{ env.IMAGE_NAME }}:sqlite \
-            python manage.py sqlmigrate books 0001 || echo "首次部署"
-          echo "模型验证完成"
-
-      - name: Test admin user creation
-        run: |
-          echo "测试管理员用户创建..."
-          docker run --rm \
-            -e ADMIN_USERNAME=customadmin \
-            -e ADMIN_EMAIL=admin@test.com \
-            -e ADMIN_PASSWORD=custompass123 \
-            498330580/${{ env.IMAGE_NAME }}:sqlite \
-            echo "ADMIN_USERNAME=$ADMIN_USERNAME"
-          echo "测试完成"
+          echo "========================================"
+          echo "镜像推送成功！"
+          echo "标签: ${{ steps.version.outputs.version }}"
+          echo "镜像: 498330580/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+          echo "========================================"
 
   notify:
     runs-on: ubuntu-latest
-    needs: [build, migration-test]
+    needs: build
     if: always()
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Get image version
         id: version
         run: |
-          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "latest")
+          if [[ ${{ github.ref }} == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=latest
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Print success message
+      - name: Success message
         if: success()
         run: |
           echo "========================================"
           echo "Docker镜像构建并推送成功！"
           echo ""
-          echo "推送的镜像标签："
-          echo "  - docker.io/498330580/legado-book-source:latest"
-          echo "  - ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
+          echo "推送的镜像："
+          echo "  - 498330580/legado-book-source:${{ steps.version.outputs.version }}"
+          echo "  - 498330580/legado-book-source:latest"
           echo ""
-          echo "使用方式："
-          echo "  docker pull 498330580/legado-book-source:latest"
-          echo "  docker run -p 8000:8000 498330580/legado-book-source:latest"
+          echo "使用命令："
+          echo "  docker pull 498330580/legado-book-source:${{ steps.version.outputs.version }}"
           echo "========================================"
 
-      - name: Print failure message
+      - name: Failure message
         if: failure()
         run: |
           echo "========================================"
