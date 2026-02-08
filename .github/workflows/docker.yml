@@ -130,7 +130,7 @@ jobs:
             -e ADMIN_EMAIL=admin@test.com \
             -e ADMIN_PASSWORD=custompass123 \
             498330580/${{ env.IMAGE_NAME }}:sqlite \
-            sh -c 'echo "ADMIN_USERNAME=$ADMIN_USERNAME"'
+            echo "ADMIN_USERNAME=$ADMIN_USERNAME"
           echo "测试完成"
 
   notify:
