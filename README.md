@@ -75,11 +75,21 @@ python manage.py runserver 0.0.0.0:8000
 # 拉取镜像
 docker pull 你的用户名/legado-book-source:latest
 
-# 运行容器
+# 运行容器（使用默认管理员: admin / admin123）
 docker run -d \
   --name legado-web \
   -p 8000:8000 \
   -v static_data:/app/static \
+  你的用户名/legado-book-source:latest
+
+# 运行容器（自定义管理员账户）
+docker run -d \
+  --name legado-web \
+  -p 8000:8000 \
+  -v static_data:/app/static \
+  -e ADMIN_USERNAME=myadmin \
+  -e ADMIN_EMAIL=admin@mysite.com \
+  -e ADMIN_PASSWORD=mypassword123 \
   你的用户名/legado-book-source:latest
 ```
 
@@ -117,11 +127,36 @@ ALLOWED_HOSTS=*
 # 调试模式
 DEBUG=0
 
-# 数据库URL（可选，使用PostgreSQL）
-DATABASE_URL=postgresql://user:pass@db:5432/legado
+# ====================
+# 管理员账户配置（可选）
+# 不设置则使用默认值: admin / admin123
+# ====================
+# 管理员用户名
+ADMIN_USERNAME=admin
 
-# 域名（用于反向代理）
-DOMAIN=localhost
+# 管理员邮箱
+ADMIN_EMAIL=admin@example.com
+
+# 管理员密码
+ADMIN_PASSWORD=admin123
+```
+
+### 自定义管理员账户
+
+在 `.env` 文件中设置以下环境变量来自定义管理员账户：
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `ADMIN_USERNAME` | admin | 管理员用户名 |
+| `ADMIN_EMAIL` | admin@example.com | 管理员邮箱 |
+| `ADMIN_PASSWORD` | admin123 | 管理员密码 |
+
+示例：
+```bash
+# 自定义管理员账户
+ADMIN_USERNAME=myadmin
+ADMIN_EMAIL=admin@mysite.com
+ADMIN_PASSWORD=mypassword123
 ```
 
 ### 使用Docker Compose + PostgreSQL

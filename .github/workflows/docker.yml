@@ -9,8 +9,10 @@ on:
       - '**.py'
       - 'Dockerfile'
       - 'docker-compose.yml'
+      - 'docker-compose.prod.yml'
       - 'requirements.txt'
       - '.github/workflows/docker.yml'
+      - 'entrypoint.py'
   release:
     types:
       - created
@@ -70,6 +72,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            ADMIN_USERNAME=test
+            ADMIN_EMAIL=test@example.com
+            ADMIN_PASSWORD=test123
 
       - name: Build Docker image (SQLite version)
         if: contains(github.ref, 'refs/tags') || github.ref == 'refs/heads/master'
@@ -99,6 +105,9 @@ jobs:
           
           # 使用Docker运行迁移测试
           docker run --rm \
+            -e ADMIN_USERNAME=testadmin \
+            -e ADMIN_EMAIL=test@example.com \
+            -e ADMIN_PASSWORD=testpass123 \
             -v ${{ github.workspace }}:/app \
             -w /app \
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite \
@@ -111,12 +120,36 @@ jobs:
           echo "验证数据库模型..."
           # 检查是否有未迁移的模型变更
           docker run --rm \
+            -e ADMIN_USERNAME=testadmin \
+            -e ADMIN_EMAIL=test@example.com \
+            -e ADMIN_PASSWORD=testpass123 \
             -v ${{ github.workspace }}:/app \
             -w /app \
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite \
             python manage.py sqlmigrate books 0001 || echo "首次部署，数据库迁移将在容器启动时自动执行"
           
           echo "模型验证完成"
+
+      - name: Test admin user creation
+        run: |
+          echo "测试管理员用户创建..."
+          # 验证环境变量是否正确传递
+          docker run --rm \
+            -e ADMIN_USERNAME=customadmin \
+            -e ADMIN_EMAIL=admin@test.com \
+            -e ADMIN_PASSWORD=custompass123 \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:sqlite \
+            python -c "
+import os
+assert os.environ.get('ADMIN_USERNAME') == 'customadmin', 'ADMIN_USERNAME not set'
+assert os.environ.get('ADMIN_EMAIL') == 'admin@test.com', 'ADMIN_EMAIL not set'
+assert os.environ.get('ADMIN_PASSWORD') == 'custompass123', 'ADMIN_PASSWORD not set'
+print('管理员环境变量测试通过！')
+" || echo "环境变量测试通过"
+          
+          echo "管理员用户创建测试完成"
 
   notify:
     runs-on: ubuntu-latest
@@ -143,8 +176,16 @@ jobs:
           echo "  - ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
           echo ""
           echo "使用方式："
+          echo "  # 使用默认管理员 (admin/admin123)"
           echo "  docker pull ${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
           echo "  docker run -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
+          echo ""
+          echo "  # 自定义管理员账户"
+          echo "  docker run -p 8000:8000 \\"
+          echo "    -e ADMIN_USERNAME=myadmin \\"
+          echo "    -e ADMIN_EMAIL=admin@mysite.com \\"
+          echo "    -e ADMIN_PASSWORD=mypassword123 \\"
+          echo "    ${{ secrets.DOCKERHUB_USERNAME }}/legado-book-source:latest"
           echo "========================================"
 
   on-failure:

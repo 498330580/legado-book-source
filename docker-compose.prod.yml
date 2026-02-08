@@ -12,6 +12,7 @@ services:
     volumes:
       - static_data:/app/static
       - media_data:/app/media
+      - data_data:/data
     environment:
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-novel_source_site.settings}
       - PYTHONDONTWRITEBYTECODE=1
@@ -19,6 +20,10 @@ services:
       - DEBUG=${DEBUG:-0}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DATABASE_URL=${DATABASE_URL:-}
+      # 管理员配置（可选，不设置则使用默认值admin/admin123）
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/", "--max-time", "5"]
@@ -52,4 +57,5 @@ networks:
 volumes:
   static_data:
   media_data:
+  data_data:
   redis_data:

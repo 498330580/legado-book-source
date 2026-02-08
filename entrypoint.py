@@ -66,6 +66,41 @@ def collect_static_files():
                 print(f"静态文件收集失败（可选）: {e}")
 
 
+def create_admin_user():
+    """创建管理员用户"""
+    from django.conf import settings
+    from django.db import connection
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+
+    # 从环境变量获取管理员信息
+    admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+    try:
+        # 检查用户模型表是否存在
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user';"
+            )
+            table_exists = cursor.fetchone() is not None
+
+        if table_exists and not User.objects.filter(username=admin_username).exists():
+            print(f"创建默认管理员用户: {admin_username}")
+            User.objects.create_superuser(
+                username=admin_username,
+                email=admin_email,
+                password=admin_password
+            )
+            print(f"管理员用户已创建 (用户名: {admin_username}, 密码: {admin_password})")
+        else:
+            print(f"管理员用户已存在: {admin_username}")
+    except Exception as e:
+        print(f"管理员用户创建失败（可选）: {e}")
+
+
 def seed_data_if_needed():
     """如果数据库为空，初始化测试数据"""
     from django.conf import settings
@@ -101,6 +136,10 @@ def main():
     print("阅读3本地书源网站 - Docker启动")
     print("=" * 50)
 
+    # 显示管理员配置
+    admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+    print(f"管理员用户名: {admin_username}")
+
     # 获取启动命令
     cmd = sys.argv[1:] if len(sys.argv) > 1 else ["manage.py", "runserver", "0.0.0.0:8000"]
 
@@ -108,6 +147,7 @@ def main():
         # 如果是启动Django服务，先运行迁移
         run_migrations()
         collect_static_files()
+        create_admin_user()
         seed_data_if_needed()
 
     # 执行原始命令
